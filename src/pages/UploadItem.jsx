@@ -118,6 +118,29 @@ export default function UploadItem() {
     setProgress('');
   };
 
+  const handleBackPhotoUpload = async (draftId, file) => {
+    try {
+      const resizedBlob = await resizeImage(file);
+      const formData = new FormData();
+      formData.append('back_image', resizedBlob, file.name.replace(/\.[^.]+$/, '.jpg'));
+
+      const res = await fetch('/api/clothing/upload-back', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.back_image_path) {
+        setDrafts(drafts.map(d => d.id === draftId ? {
+          ...d,
+          back_image_path: data.back_image_path,
+          back_preview: URL.createObjectURL(file)
+        } : d));
+      }
+    } catch (err) {
+      alert('Failed to upload back photo: ' + err.message);
+    }
+  };
+
   const handleSave = async (draftId) => {
     const draft = drafts.find(d => d.id === draftId);
     if (!draft) return;
@@ -128,6 +151,7 @@ export default function UploadItem() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image_path: draft.image_path,
+          back_image_path: draft.back_image_path || null,
           ...draft.tags
         }),
       });
@@ -165,7 +189,7 @@ export default function UploadItem() {
       <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
         <h2 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Catalog New Pieces</h2>
         <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '1.1rem' }}>
-          Upload garments or fragrances to scan them with AI cataloging
+          Upload garments (Front & Back photos) or fragrances to scan them with AI cataloging
         </p>
       </div>
       
@@ -207,7 +231,7 @@ export default function UploadItem() {
                 {files.length > 0 ? `${files.length} image(s) selected` : 'Select Closet Images'}
               </h4>
               <p style={{ fontSize: '0.85rem' }}>
-                Click to browse files (JPEG, PNG supported)
+                Click to browse files (Front photos required; back photos can be added on next step)
               </p>
             </label>
           </div>
@@ -241,8 +265,36 @@ export default function UploadItem() {
           <div className="grid">
             {drafts.map(draft => (
               <div key={draft.id} className="hangtag" style={{ gap: '1rem' }}>
-                <div className="hangtag-img-container" style={{ paddingTop: '100%' }}>
-                  <img src={draft.preview} alt="Draft Preview" className="hangtag-img" style={{ objectFit: 'contain', backgroundColor: '#F8F6F2' }} />
+                {/* Front and Back previews side-by-side or tabbed */}
+                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem', textAlign: 'center' }}>FRONT</div>
+                    <div className="hangtag-img-container" style={{ paddingTop: '100%', borderRadius: '8px', overflow: 'hidden' }}>
+                      <img src={draft.preview} alt="Front View" className="hangtag-img" style={{ objectFit: 'contain', backgroundColor: '#F8F6F2' }} />
+                    </div>
+                  </div>
+
+                  {type === 'clothing' && (
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem', textAlign: 'center' }}>BACK (OPTIONAL)</div>
+                      <div className="hangtag-img-container" style={{ paddingTop: '100%', borderRadius: '8px', overflow: 'hidden', border: '1px dashed var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {draft.back_preview ? (
+                          <img src={draft.back_preview} alt="Back View" className="hangtag-img" style={{ objectFit: 'contain', backgroundColor: '#F8F6F2' }} />
+                        ) : (
+                          <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', cursor: 'pointer', padding: '0.5rem', textAlign: 'center' }}>
+                            <span style={{ fontSize: '1.2rem', marginBottom: '0.25rem' }}>📸</span>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Add Back Photo</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={(e) => e.target.files[0] && handleBackPhotoUpload(draft.id, e.target.files[0])} 
+                              style={{ display: 'none' }} 
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Duplicate alert if found */}

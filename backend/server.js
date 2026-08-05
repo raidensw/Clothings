@@ -51,16 +51,27 @@ app.post('/api/clothing/upload', upload.single('image'), async (req, res) => {
   }
 });
 
+app.post('/api/clothing/upload-back', upload.single('back_image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No back image uploaded' });
+    const backImagePath = `/uploads/${req.file.filename}`;
+    res.json({ back_image_path: backImagePath });
+  } catch (err) {
+    console.error('Back clothing upload error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/clothing', (req, res) => {
-  const { image_path, category, color, style, pattern, season_fit, warmth_level, brand, purchase_price } = req.body;
+  const { image_path, back_image_path, category, color, style, pattern, season_fit, warmth_level, brand, purchase_price } = req.body;
   try {
     const formattedSeasonFit = Array.isArray(season_fit) ? season_fit.join(', ') : season_fit;
     const formattedStyle = Array.isArray(style) ? style.join(', ') : style;
     const stmt = db.prepare(`
-      INSERT INTO clothing_items (image_path, category, color, style, pattern, season_fit, warmth_level, brand, purchase_price)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO clothing_items (image_path, back_image_path, category, color, style, pattern, season_fit, warmth_level, brand, purchase_price)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    const info = stmt.run(image_path, category, color, formattedStyle, pattern, formattedSeasonFit, warmth_level, brand || null, purchase_price || null);
+    const info = stmt.run(image_path, back_image_path || null, category, color, formattedStyle, pattern, formattedSeasonFit, warmth_level, brand || null, purchase_price || null);
     res.json({ id: info.lastInsertRowid, success: true });
   } catch (err) {
     console.error('Failed to save clothing item:', err);

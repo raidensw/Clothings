@@ -6,8 +6,14 @@ export default function ClosetBrowser() {
   const [activeTab, setActiveTab] = useState('clothing');
   const [filter, setFilter] = useState('All');
   const [selectedItems, setSelectedItems] = useState([]);
+  const [flippedItems, setFlippedItems] = useState({}); // { [itemId]: boolean }
   const [editingScent, setEditingScent] = useState(null);
   const [newMl, setNewMl] = useState(100);
+
+  const toggleFlip = (e, itemId) => {
+    e.stopPropagation();
+    setFlippedItems(prev => ({ ...prev, [itemId]: !prev[itemId] }));
+  };
 
   const loadData = () => {
     fetch('/api/clothing')
@@ -202,6 +208,8 @@ export default function ClosetBrowser() {
             {filteredClothing.map(item => {
               const isSelected = selectedItems.includes(item.id);
               const isPacked = item.packed_until && item.packed_until >= today;
+              const isFlipped = flippedItems[item.id] && item.back_image_path;
+              const currentImg = isFlipped ? item.back_image_path : item.image_path;
 
               return (
                 <div 
@@ -238,9 +246,38 @@ export default function ClosetBrowser() {
                     {isSelected && '✓'}
                   </div>
 
+                  {/* Front/Back Flip Badge */}
+                  {item.back_image_path && (
+                    <button
+                      type="button"
+                      onClick={(e) => toggleFlip(e, item.id)}
+                      title="Toggle Front/Back View"
+                      style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        zIndex: 5,
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '20px',
+                        background: 'rgba(30, 30, 30, 0.75)',
+                        color: '#FFF',
+                        fontSize: '0.65rem',
+                        fontFamily: 'var(--font-mono)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        backdropFilter: 'blur(4px)'
+                      }}
+                    >
+                      🔄 {isFlipped ? 'BACK' : 'FRONT'}
+                    </button>
+                  )}
+
                   {/* Visual Anchor: Portrait Mode Image Container */}
                   <div className="hangtag-img-container" style={{ position: 'relative' }}>
-                    <img src={item.image_path} alt={item.category || "clothing"} className="hangtag-img" />
+                    <img src={currentImg} alt={item.category || "clothing"} className="hangtag-img" />
                     
                     {/* Status Banners */}
                     {item.is_dirty === 1 && (

@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS clothing_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   image_path TEXT NOT NULL,
+  back_image_path TEXT,
   category TEXT,
   color TEXT,
   style TEXT,

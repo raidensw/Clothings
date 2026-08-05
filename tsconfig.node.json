@@ -16,5 +16,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "server.js", "ai.js", "backend/**/*.ts", "backend/**/*.js", ".eslintrc.cjs"]
+  "include": ["vite.config.js", "vite.config.ts", "server.js", "ai.js", "backend/**/*.ts", "backend/**/*.js"]
 }

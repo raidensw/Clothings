@@ -15,7 +15,8 @@ const clothingMigrations = [
   "ALTER TABLE clothing_items ADD COLUMN is_dirty INTEGER DEFAULT 0;",
   "ALTER TABLE clothing_items ADD COLUMN brand TEXT;",
   "ALTER TABLE clothing_items ADD COLUMN purchase_price REAL;",
-  "ALTER TABLE clothing_items ADD COLUMN packed_until TEXT;"
+  "ALTER TABLE clothing_items ADD COLUMN packed_until TEXT;",
+  "ALTER TABLE clothing_items ADD COLUMN back_image_path TEXT;"
 ];
 
 clothingMigrations.forEach(query => {
