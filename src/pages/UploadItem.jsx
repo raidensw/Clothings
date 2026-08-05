@@ -135,23 +135,19 @@ export default function UploadItem() {
   const handleBackPhotoUpload = async (draftId, file) => {
     try {
       const resizedBlob = await resizeImage(file);
-      const formData = new FormData();
-      formData.append('back_image', resizedBlob, file.name.replace(/\.[^.]+$/, '.jpg'));
-
-      const res = await fetch('/api/clothing/upload-back', {
-        method: 'POST',
-        body: formData,
+      const dataUrl = await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(resizedBlob);
       });
-      const data = await res.json();
-      if (data.back_image_path) {
-        setDrafts(drafts.map(d => d.id === draftId ? {
-          ...d,
-          back_image_path: data.back_image_path,
-          back_preview: URL.createObjectURL(file)
-        } : d));
-      }
+
+      setDrafts(drafts.map(d => d.id === draftId ? {
+        ...d,
+        back_image_path: dataUrl,
+        back_preview: dataUrl
+      } : d));
     } catch (err) {
-      alert('Failed to upload back photo: ' + err.message);
+      alert('Failed to process back photo: ' + err.message);
     }
   };
 

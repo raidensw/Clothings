@@ -127,139 +127,108 @@ function Home() {
   );
 }
 
-function ProfileSelector() {
-  const [profiles, setProfiles] = useState([]);
-  const [activeProfileId, setActiveProfileId] = useState(localStorage.getItem('atelier-user-id') || '1');
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [newProfileName, setNewProfileName] = useState('');
+function UserAccountAuth() {
+  const [currentUser, setCurrentUser] = useState(localStorage.getItem('atelier-account-name') || 'Guest Wardrobe');
+  const [userAccountKey, setUserAccountKey] = useState(localStorage.getItem('atelier-account-key') || 'guest_default');
+  const [showModal, setShowModal] = useState(false);
+  const [inputName, setInputName] = useState('');
+  const [inputKey, setInputKey] = useState('');
 
-  const loadProfiles = () => {
-    // Combine local profiles with server profiles
-    const savedLocalProfiles = JSON.parse(localStorage.getItem('atelier-local-profiles') || '[]');
-    const defaultProfiles = [
-      { id: '1', name: 'My Wardrobe' },
-      ...savedLocalProfiles
-    ];
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (!inputName.trim() || !inputKey.trim()) return;
 
-    fetch('/api/profiles')
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          // Merge unique profiles
-          const merged = [...defaultProfiles];
-          data.forEach(p => {
-            if (!merged.some(m => String(m.id) === String(p.id))) {
-              merged.push({ id: String(p.id), name: p.name });
-            }
-          });
-          setProfiles(merged);
-        } else {
-          setProfiles(defaultProfiles);
-        }
-      })
-      .catch(() => {
-        setProfiles(defaultProfiles);
-      });
-  };
-
-  useEffect(() => {
-    loadProfiles();
-  }, []);
-
-  const handleProfileChange = (id) => {
-    setActiveProfileId(id);
-    localStorage.setItem('atelier-user-id', id);
+    const cleanKey = inputKey.trim().toLowerCase().replace(/\s+/g, '_');
+    localStorage.setItem('atelier-account-name', inputName.trim());
+    localStorage.setItem('atelier-account-key', cleanKey);
+    localStorage.setItem('atelier-user-id', cleanKey);
+    
+    setCurrentUser(inputName.trim());
+    setUserAccountKey(cleanKey);
+    setShowModal(false);
     window.location.reload();
   };
 
-  const createProfile = async (e) => {
-    e.preventDefault();
-    if (!newProfileName.trim()) return;
-    
-    const newId = 'profile_' + Date.now();
-    const newProf = { id: newId, name: newProfileName.trim() };
-    
-    // Save locally for instant persistence
-    const savedLocalProfiles = JSON.parse(localStorage.getItem('atelier-local-profiles') || '[]');
-    const updatedLocal = [...savedLocalProfiles, newProf];
-    localStorage.setItem('atelier-local-profiles', JSON.stringify(updatedLocal));
-
-    try {
-      await fetch('/api/profiles/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newProfileName })
-      });
-    } catch (err) {
-      // Continue with local profile if serverless API is offline
-    }
-
-    setNewProfileName('');
-    setShowNewModal(false);
-    handleProfileChange(newId);
+  const handleLogout = () => {
+    localStorage.removeItem('atelier-account-name');
+    localStorage.removeItem('atelier-account-key');
+    localStorage.removeItem('atelier-user-id');
+    window.location.reload();
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-      <select
-        value={activeProfileId}
-        onChange={(e) => handleProfileChange(e.target.value)}
-        style={{
-          padding: '0.35rem 0.6rem',
-          fontSize: '0.75rem',
-          borderRadius: '6px',
-          border: '1px solid var(--accent-olive)',
-          background: 'var(--card-bg)',
-          color: 'var(--text-color)',
-          cursor: 'pointer',
-          fontWeight: '600'
-        }}
-      >
-        {profiles.map(p => (
-          <option key={p.id} value={p.id}>👤 {p.name}</option>
-        ))}
-      </select>
-
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
       <button
         type="button"
-        onClick={() => setShowNewModal(true)}
+        onClick={() => setShowModal(true)}
         className="btn btn-secondary"
-        title="Add New Profile"
         style={{
-          padding: '0.35rem 0.6rem',
+          padding: '0.35rem 0.65rem',
           fontSize: '0.75rem',
-          lineHeight: '1',
+          borderRadius: '20px',
+          borderColor: 'var(--accent-olive)',
+          background: 'var(--card-bg)',
+          color: 'var(--text-color)',
+          fontWeight: '600',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.2rem'
+          gap: '0.3rem'
         }}
       >
-        ➕ New
+        👤 {currentUser}
       </button>
 
-      {showNewModal && (
+      {showModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          background: 'rgba(0,0,0,0.55)', zIndex: 1000,
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
         }}>
-          <div className="hangtag" style={{ maxWidth: '400px', width: '100%', background: 'var(--card-bg)', padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>Create Profile</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              Create a profile to access your closet across phone & PC!
+          <div className="hangtag" style={{ maxWidth: '400px', width: '100%', background: 'var(--card-bg)', padding: '1.75rem' }}>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>Log In / Switch Account</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+              Enter your Name and secret Account Password to access your closet on phone &amp; PC!
             </p>
-            <form onSubmit={createProfile}>
-              <input
-                type="text"
-                placeholder="e.g. Raiden's Closet"
-                value={newProfileName}
-                onChange={e => setNewProfileName(e.target.value)}
-                style={{ width: '100%', padding: '0.6rem 0.8rem', fontSize: '0.9rem', marginBottom: '1rem' }}
-                autoFocus
-              />
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowNewModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Create Profile</button>
+            
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+              <div>
+                <label style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Raiden"
+                  value={inputName}
+                  onChange={e => setInputName(e.target.value)}
+                  style={{ width: '100%', padding: '0.6rem 0.8rem', fontSize: '0.9rem', marginTop: '0.25rem' }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                  Account Password / Sync Code
+                </label>
+                <input
+                  type="password"
+                  placeholder="e.g. secret123"
+                  value={inputKey}
+                  onChange={e => setInputKey(e.target.value)}
+                  style={{ width: '100%', padding: '0.6rem 0.8rem', fontSize: '0.9rem', marginTop: '0.25rem' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', marginTop: '0.5rem' }}>
+                {userAccountKey !== 'guest_default' && (
+                  <button type="button" className="btn btn-danger" onClick={handleLogout} style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>
+                    Log Out
+                  </button>
+                )}
+                <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary">Log In</button>
+                </div>
               </div>
             </form>
           </div>
@@ -301,9 +270,9 @@ function App() {
           ))}
         </div>
 
-        {/* Profile Switcher + Theme selector + hamburger */}
+        {/* User Account Auth + Theme selector + hamburger */}
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <ProfileSelector />
+          <UserAccountAuth />
           <select
             value={theme}
             onChange={(e) => setTheme(e.target.value)}
