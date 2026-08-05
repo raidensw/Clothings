@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchUserCloudWardrobe } from './utils/cloudSync';
+import { fetchUserCloudWardrobe, getBinIdKey } from './utils/cloudSync';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import ClosetBrowser from './pages/ClosetBrowser';
 import UploadItem from './pages/UploadItem';
@@ -146,31 +146,58 @@ function UserAccountAuth() {
 
     const cleanUsername = inputName.trim().toLowerCase().replace(/\s+/g, '_');
 
-    // Save credentials to localStorage
-    localStorage.setItem('atelier-account-name', inputName.trim());
-    localStorage.setItem('atelier-account-key', inputKey.trim());
-    localStorage.setItem('atelier-user-id', cleanUsername);
-
-    // Pull cloud wardrobe DOWN immediately — so items appear on reload
     try {
-      const cloudData = await fetchUserCloudWardrobe(inputName.trim(), inputKey.trim());
-      if (cloudData) {
-        if (Array.isArray(cloudData.clothing) && cloudData.clothing.length > 0) {
-          localStorage.setItem(`atelier-clothing-${cleanUsername}`, JSON.stringify(cloudData.clothing));
-        }
-        if (Array.isArray(cloudData.scents) && cloudData.scents.length > 0) {
-          localStorage.setItem(`atelier-scents-${cleanUsername}`, JSON.stringify(cloudData.scents));
-        }
-      }
-    } catch (err) {
-      console.warn('Cloud pull on login:', err.message);
-    }
+      const endpoint = isSignUp ? '/api/auth/register' : '/api/auth/login';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: inputName.trim(),
+          password: inputKey.trim(),
+          name: inputName.trim()
+        })
+      });
 
-    setCurrentUser(inputName.trim());
-    setUserAccountKey(inputKey.trim());
-    setShowModal(false);
-    setLoading(false);
-    window.location.reload();
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      // Save credentials to localStorage
+      localStorage.setItem('atelier-account-name', inputName.trim());
+      localStorage.setItem('atelier-account-key', inputKey.trim());
+      localStorage.setItem('atelier-user-id', cleanUsername);
+
+      // If backend database already has a bin_id, store it locally so we fetch it next
+      if (data.user && data.user.bin_id) {
+        const binKey = getBinIdKey(inputName.trim(), inputKey.trim());
+        localStorage.setItem(binKey, data.user.bin_id);
+      }
+
+      // Pull cloud wardrobe DOWN immediately — so items appear on reload
+      try {
+        const cloudData = await fetchUserCloudWardrobe(inputName.trim(), inputKey.trim());
+        if (cloudData) {
+          if (Array.isArray(cloudData.clothing) && cloudData.clothing.length > 0) {
+            localStorage.setItem(`atelier-clothing-${cleanUsername}`, JSON.stringify(cloudData.clothing));
+          }
+          if (Array.isArray(cloudData.scents) && cloudData.scents.length > 0) {
+            localStorage.setItem(`atelier-scents-${cleanUsername}`, JSON.stringify(cloudData.scents));
+          }
+        }
+      } catch (err) {
+        console.warn('Cloud pull on login:', err.message);
+      }
+
+      setCurrentUser(inputName.trim());
+      setUserAccountKey(inputKey.trim());
+      setShowModal(false);
+      setLoading(false);
+      window.location.reload();
+    } catch (err) {
+      setErrorMsg(err.message);
+      setLoading(false);
+    }
   };
 
   const handleLogout = () => {

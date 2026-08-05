@@ -12,7 +12,7 @@ const JSONBIN_API = 'https://api.jsonbin.io/v3';
 // Free shared master key - anonymous bins (no account needed)
 const MASTER_KEY = '$2a$10$Z5kpUEWi.bxnK1gVuSwpuebNRGiJhMVL7y3mXFUPqbCq4jqP4JWAC';
 
-function getAccountHash(username, password) {
+export function getAccountHash(username, password) {
   // Simple deterministic key from credentials
   const str = `${username.trim().toLowerCase()}::${password.trim()}`;
   let hash = 0;
@@ -23,7 +23,7 @@ function getAccountHash(username, password) {
   return Math.abs(hash).toString(36).padStart(8, '0');
 }
 
-function getBinIdKey(username, password) {
+export function getBinIdKey(username, password) {
   return `atelier-binid-${getAccountHash(username, password)}`;
 }
 
@@ -49,6 +49,12 @@ async function getOrCreateBin(username, password, initialData) {
       const binId = data?.metadata?.id;
       if (binId) {
         localStorage.setItem(binKey, binId);
+        // Save to backend database
+        await fetch('/api/auth/update-bin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: username.trim(), bin_id: binId })
+        }).catch(e => console.warn('Failed to update bin on backend:', e.message));
         return binId;
       }
     }

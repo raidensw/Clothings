@@ -66,7 +66,7 @@ Return ONLY valid JSON and nothing else. No markdown formatting.)
         ]
       }
     ],
-    model: 'qwen/qwen3.6-27b',
+    model: 'llama-3.2-11b-vision-preview',
     temperature: 0.1,
   });
 
@@ -120,7 +120,7 @@ Return ONLY valid JSON and nothing else. No markdown formatting.)
         ]
       }
     ],
-    model: 'qwen/qwen3.6-27b',
+    model: 'llama-3.2-11b-vision-preview',
     temperature: 0.1,
   });
 

@@ -56,6 +56,22 @@ export default function ClosetBrowser() {
 
   useEffect(() => {
     loadData();
+
+    // Auto-update when browser tab gains focus
+    const handleFocus = () => {
+      loadData(true);
+    };
+    window.addEventListener('focus', handleFocus);
+
+    // Auto-update periodically in background (every 5 seconds)
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 5000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
   }, []);
 
   const deleteItem = async (id, type) => {

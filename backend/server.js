@@ -47,21 +47,26 @@ app.post('/api/auth/register', (req, res) => {
   }
 
   const cleanUser = username.trim().toLowerCase();
-  if (cloudUserAccounts.has(cleanUser)) {
-    return res.status(400).json({ error: 'Username already taken. Please try logging in!' });
+  try {
+    const existingUser = db.prepare('SELECT * FROM users WHERE username = ?').get(cleanUser);
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username already taken. Please try logging in!' });
+    }
+
+    const userObj = {
+      username: cleanUser,
+      password: password.trim(),
+      name: name || username,
+    };
+
+    db.prepare('INSERT INTO users (username, password, name) VALUES (?, ?, ?)')
+      .run(userObj.username, userObj.password, userObj.name);
+
+    res.json({ success: true, user: { username: userObj.username, name: userObj.name, bin_id: null } });
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: err.message });
   }
-
-  const userObj = {
-    username: cleanUser,
-    password: password.trim(),
-    name: name || username,
-    created_at: new Date().toISOString()
-  };
-
-  cloudUserAccounts.set(cleanUser, userObj);
-  cloudWardrobes.set(cleanUser, { clothing: [], scents: [], presets: [], logs: [] });
-
-  res.json({ success: true, user: { username: userObj.username, name: userObj.name } });
 });
 
 app.post('/api/auth/login', (req, res) => {
@@ -71,24 +76,45 @@ app.post('/api/auth/login', (req, res) => {
   }
 
   const cleanUser = username.trim().toLowerCase();
-  const user = cloudUserAccounts.get(cleanUser);
+  try {
+    let user = db.prepare('SELECT * FROM users WHERE username = ?').get(cleanUser);
 
-  if (!user || user.password !== password.trim()) {
-    // If account doesn't exist yet, auto-create it for smooth user experience!
-    const newUser = {
-      username: cleanUser,
-      password: password.trim(),
-      name: username,
-      created_at: new Date().toISOString()
-    };
-    cloudUserAccounts.set(cleanUser, newUser);
-    if (!cloudWardrobes.has(cleanUser)) {
-      cloudWardrobes.set(cleanUser, { clothing: [], scents: [], presets: [], logs: [] });
+    if (!user) {
+      // If account doesn't exist yet, auto-create it for smooth user experience!
+      const userObj = {
+        username: cleanUser,
+        password: password.trim(),
+        name: username,
+      };
+      db.prepare('INSERT INTO users (username, password, name) VALUES (?, ?, ?)')
+        .run(userObj.username, userObj.password, userObj.name);
+      
+      user = db.prepare('SELECT * FROM users WHERE username = ?').get(cleanUser);
+    } else if (user.password !== password.trim()) {
+      return res.status(400).json({ error: 'Incorrect password for this username' });
     }
-    return res.json({ success: true, user: { username: newUser.username, name: newUser.name } });
+
+    res.json({ success: true, user: { username: user.username, name: user.name, bin_id: user.bin_id || null } });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/update-bin', (req, res) => {
+  const { username, bin_id } = req.body;
+  if (!username || !bin_id) {
+    return res.status(400).json({ error: 'Username and bin_id are required' });
   }
 
-  res.json({ success: true, user: { username: user.username, name: user.name } });
+  const cleanUser = username.trim().toLowerCase();
+  try {
+    db.prepare('UPDATE users SET bin_id = ? WHERE username = ?').run(bin_id, cleanUser);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Failed to update bin ID:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/auth/sync', (req, res) => {

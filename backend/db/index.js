@@ -13,6 +13,7 @@ db.exec(schema);
 // Migration: Add user_id to all resource tables if missing
 const userMigrations = [
   "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, name TEXT, avatar_color TEXT DEFAULT '#5B664C', created_at DATETIME DEFAULT CURRENT_TIMESTAMP);",
+  "ALTER TABLE users ADD COLUMN bin_id TEXT;",
   "ALTER TABLE clothing_items ADD COLUMN user_id INTEGER DEFAULT 1;",
   "ALTER TABLE scents ADD COLUMN user_id INTEGER DEFAULT 1;",
   "ALTER TABLE outfit_presets ADD COLUMN user_id INTEGER DEFAULT 1;",
