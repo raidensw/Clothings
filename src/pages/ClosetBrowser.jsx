@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchUserCloudWardrobe, saveUserCloudWardrobe } from '../utils/cloudSync';
 
 export default function ClosetBrowser() {
   const [clothing, setClothing] = useState([]);
@@ -6,7 +7,7 @@ export default function ClosetBrowser() {
   const [activeTab, setActiveTab] = useState('clothing');
   const [filter, setFilter] = useState('All');
   const [selectedItems, setSelectedItems] = useState([]);
-  const [flippedItems, setFlippedItems] = useState({}); // { [itemId]: boolean }
+  const [flippedItems, setFlippedItems] = useState({});
   const [editingScent, setEditingScent] = useState(null);
   const [newMl, setNewMl] = useState(100);
 
@@ -15,37 +16,44 @@ export default function ClosetBrowser() {
     setFlippedItems(prev => ({ ...prev, [itemId]: !prev[itemId] }));
   };
 
-  const loadData = () => {
+  const loadData = async () => {
+    const username = localStorage.getItem('atelier-account-name') || 'guest';
+    const accountKey = localStorage.getItem('atelier-account-key') || 'key';
     const userId = localStorage.getItem('atelier-user-id') || '1';
+
     const localClothingKey = `atelier-clothing-${userId}`;
     const localScentsKey = `atelier-scents-${userId}`;
 
     const savedLocalClothing = JSON.parse(localStorage.getItem(localClothingKey) || '[]');
     const savedLocalScents = JSON.parse(localStorage.getItem(localScentsKey) || '[]');
 
+    // 1. Fetch from cloud storage
+    const cloudData = await fetchUserCloudWardrobe(username, accountKey);
+    if (cloudData) {
+      if (Array.isArray(cloudData.clothing)) {
+        setClothing(cloudData.clothing);
+        localStorage.setItem(localClothingKey, JSON.stringify(cloudData.clothing));
+      }
+      if (Array.isArray(cloudData.scents)) {
+        setScents(cloudData.scents);
+        localStorage.setItem(localScentsKey, JSON.stringify(cloudData.scents));
+      }
+    } else {
+      setClothing(savedLocalClothing);
+      setScents(savedLocalScents);
+    }
+
+    // 2. Fetch from backend API
     fetch('/api/clothing', { headers: { 'x-user-id': userId } })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           setClothing(data);
           localStorage.setItem(localClothingKey, JSON.stringify(data));
-        } else {
-          setClothing(savedLocalClothing);
+          saveUserCloudWardrobe(username, accountKey, { clothing: data, scents: savedLocalScents });
         }
       })
-      .catch(() => setClothing(savedLocalClothing));
-      
-    fetch('/api/scents', { headers: { 'x-user-id': userId } })
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setScents(data);
-          localStorage.setItem(localScentsKey, JSON.stringify(data));
-        } else {
-          setScents(savedLocalScents);
-        }
-      })
-      .catch(() => setScents(savedLocalScents));
+      .catch(() => {});
   };
 
   useEffect(() => {

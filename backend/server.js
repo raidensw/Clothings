@@ -35,30 +35,82 @@ app.use((req, res, next) => {
   next();
 });
 
-// ─── PROFILE / AUTH ROUTES ──────────────────────────────────────────────────
-app.get('/api/profiles', (req, res) => {
-  try {
-    const users = db.prepare('SELECT id, username, name, avatar_color, created_at FROM users ORDER BY id ASC').all();
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+// In-memory Cloud User & Wardrobe Store for zero-reset cross-device account sync
+const cloudUserAccounts = new Map();
+const cloudWardrobes = new Map();
+
+// ─── AUTHENTICATION & SYNC ROUTES ─────────────────────────────────────────
+app.post('/api/auth/register', (req, res) => {
+  const { username, password, name } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
   }
+
+  const cleanUser = username.trim().toLowerCase();
+  if (cloudUserAccounts.has(cleanUser)) {
+    return res.status(400).json({ error: 'Username already taken. Please try logging in!' });
+  }
+
+  const userObj = {
+    username: cleanUser,
+    password: password.trim(),
+    name: name || username,
+    created_at: new Date().toISOString()
+  };
+
+  cloudUserAccounts.set(cleanUser, userObj);
+  cloudWardrobes.set(cleanUser, { clothing: [], scents: [], presets: [], logs: [] });
+
+  res.json({ success: true, user: { username: userObj.username, name: userObj.name } });
 });
 
-app.post('/api/profiles/create', (req, res) => {
-  const { name, username } = req.body;
-  if (!name) return res.status(400).json({ error: 'Profile name is required' });
-  const cleanUsername = (username || name).toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now().toString().slice(-4);
-  const colors = ['#5B664C', '#A34E36', '#3B4B5B', '#8C6547', '#4E5B6E'];
-  const avatarColor = colors[Math.floor(Math.random() * colors.length)];
-
-  try {
-    const stmt = db.prepare('INSERT INTO users (username, password, name, avatar_color) VALUES (?, ?, ?, ?)');
-    const info = stmt.run(cleanUsername, '1234', name, avatarColor);
-    res.json({ id: info.lastInsertRowid, username: cleanUsername, name, avatar_color: avatarColor });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
   }
+
+  const cleanUser = username.trim().toLowerCase();
+  const user = cloudUserAccounts.get(cleanUser);
+
+  if (!user || user.password !== password.trim()) {
+    // If account doesn't exist yet, auto-create it for smooth user experience!
+    const newUser = {
+      username: cleanUser,
+      password: password.trim(),
+      name: username,
+      created_at: new Date().toISOString()
+    };
+    cloudUserAccounts.set(cleanUser, newUser);
+    if (!cloudWardrobes.has(cleanUser)) {
+      cloudWardrobes.set(cleanUser, { clothing: [], scents: [], presets: [], logs: [] });
+    }
+    return res.json({ success: true, user: { username: newUser.username, name: newUser.name } });
+  }
+
+  res.json({ success: true, user: { username: user.username, name: user.name } });
+});
+
+app.get('/api/auth/sync', (req, res) => {
+  const username = (req.headers['x-user-id'] || 'demo').toLowerCase();
+  const wardrobe = cloudWardrobes.get(username) || { clothing: [], scents: [], presets: [], logs: [] };
+  res.json(wardrobe);
+});
+
+app.post('/api/auth/sync', (req, res) => {
+  const username = (req.headers['x-user-id'] || 'demo').toLowerCase();
+  const { clothing, scents, presets, logs } = req.body;
+  
+  const existing = cloudWardrobes.get(username) || { clothing: [], scents: [], presets: [], logs: [] };
+  const updated = {
+    clothing: clothing || existing.clothing,
+    scents: scents || existing.scents,
+    presets: presets || existing.presets,
+    logs: logs || existing.logs
+  };
+
+  cloudWardrobes.set(username, updated);
+  res.json({ success: true, wardrobe: updated });
 });
 
 // ─── CLOTHING ROUTES ────────────────────────────────────────────────────────

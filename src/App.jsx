@@ -128,25 +128,65 @@ function Home() {
 }
 
 function UserAccountAuth() {
-  const [currentUser, setCurrentUser] = useState(localStorage.getItem('atelier-account-name') || 'Guest Wardrobe');
-  const [userAccountKey, setUserAccountKey] = useState(localStorage.getItem('atelier-account-key') || 'guest_default');
-  const [showModal, setShowModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(localStorage.getItem('atelier-account-name') || '');
+  const [userAccountKey, setUserAccountKey] = useState(localStorage.getItem('atelier-account-key') || '');
+  const [showModal, setShowModal] = useState(!localStorage.getItem('atelier-account-key'));
+  const [isSignUp, setIsSignUp] = useState(false);
   const [inputName, setInputName] = useState('');
   const [inputKey, setInputKey] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLogin = (e) => {
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
     if (!inputName.trim() || !inputKey.trim()) return;
 
-    const cleanKey = inputKey.trim().toLowerCase().replace(/\s+/g, '_');
-    localStorage.setItem('atelier-account-name', inputName.trim());
-    localStorage.setItem('atelier-account-key', cleanKey);
-    localStorage.setItem('atelier-user-id', cleanKey);
-    
-    setCurrentUser(inputName.trim());
-    setUserAccountKey(cleanKey);
-    setShowModal(false);
-    window.location.reload();
+    setLoading(true);
+    setErrorMsg('');
+
+    const cleanUsername = inputName.trim().toLowerCase().replace(/\s+/g, '_');
+    const endpoint = isSignUp ? '/api/auth/register' : '/api/auth/login';
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: cleanUsername,
+          password: inputKey.trim(),
+          name: inputName.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (data.error && isSignUp) {
+        setErrorMsg(data.error);
+        setLoading(false);
+        return;
+      }
+
+      // Save credentials & user session
+      localStorage.setItem('atelier-account-name', inputName.trim());
+      localStorage.setItem('atelier-account-key', inputKey.trim());
+      localStorage.setItem('atelier-user-id', cleanUsername);
+
+      setCurrentUser(inputName.trim());
+      setUserAccountKey(inputKey.trim());
+      setShowModal(false);
+      setLoading(false);
+      window.location.reload();
+    } catch (err) {
+      // Fallback local account creation if offline
+      localStorage.setItem('atelier-account-name', inputName.trim());
+      localStorage.setItem('atelier-account-key', inputKey.trim());
+      localStorage.setItem('atelier-user-id', cleanUsername);
+
+      setCurrentUser(inputName.trim());
+      setUserAccountKey(inputKey.trim());
+      setShowModal(false);
+      setLoading(false);
+      window.location.reload();
+    }
   };
 
   const handleLogout = () => {
@@ -175,29 +215,47 @@ function UserAccountAuth() {
           gap: '0.3rem'
         }}
       >
-        👤 {currentUser}
+        👤 {currentUser || 'Log In / Sign Up'}
       </button>
 
       {showModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.55)', zIndex: 1000,
+          background: 'rgba(0,0,0,0.65)', zIndex: 1000,
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
         }}>
           <div className="hangtag" style={{ maxWidth: '400px', width: '100%', background: 'var(--card-bg)', padding: '1.75rem' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>Log In / Switch Account</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.5rem' }}>{isSignUp ? 'Create Wardrobe Account' : 'Log Into Account'}</h3>
+              <button 
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                style={{ background: 'none', border: 'none', color: 'var(--accent-olive)', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                {isSignUp ? 'Existing user? Log In' : 'Need an account? Sign Up'}
+              </button>
+            </div>
+
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-              Enter your Name and secret Account Password to access your closet on phone &amp; PC!
+              {isSignUp 
+                ? 'Sign up to sync your closet across your phone and PC!' 
+                : 'Enter your Username & Password to access your synced closet on any device.'}
             </p>
             
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            {errorMsg && (
+              <div style={{ background: 'rgba(163, 78, 54, 0.1)', color: '#A34E36', padding: '0.5rem', borderRadius: '6px', fontSize: '0.8rem', marginBottom: '1rem' }}>
+                {errorMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
               <div>
                 <label style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                  Your Name
+                  Username / Name
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Raiden"
+                  placeholder="e.g. raiden"
                   value={inputName}
                   onChange={e => setInputName(e.target.value)}
                   style={{ width: '100%', padding: '0.6rem 0.8rem', fontSize: '0.9rem', marginTop: '0.25rem' }}
@@ -207,11 +265,11 @@ function UserAccountAuth() {
 
               <div>
                 <label style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                  Account Password / Sync Code
+                  Account Password
                 </label>
                 <input
                   type="password"
-                  placeholder="e.g. secret123"
+                  placeholder="Password"
                   value={inputKey}
                   onChange={e => setInputKey(e.target.value)}
                   style={{ width: '100%', padding: '0.6rem 0.8rem', fontSize: '0.9rem', marginTop: '0.25rem' }}
@@ -220,14 +278,16 @@ function UserAccountAuth() {
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', marginTop: '0.5rem' }}>
-                {userAccountKey !== 'guest_default' && (
+                {userAccountKey && (
                   <button type="button" className="btn btn-danger" onClick={handleLogout} style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>
                     Log Out
                   </button>
                 )}
                 <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary">Log In</button>
+                  {currentUser && <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>}
+                  <button type="submit" className="btn btn-primary" disabled={loading}>
+                    {loading ? 'Authenticating...' : (isSignUp ? 'Sign Up' : 'Log In')}
+                  </button>
                 </div>
               </div>
             </form>

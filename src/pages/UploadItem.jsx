@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { saveUserCloudWardrobe } from '../utils/cloudSync';
 
 function resizeImage(file, maxSize = 800) {
   return new Promise((resolve) => {
@@ -168,8 +169,18 @@ export default function UploadItem() {
       ...draft.tags
     };
 
+    const username = localStorage.getItem('atelier-account-name') || 'guest';
+    const accountKey = localStorage.getItem('atelier-account-key') || 'key';
+    const updatedWardrobe = [newItem, ...savedLocal];
+
     // Save locally first for 100% instant reliability
-    localStorage.setItem(localKey, JSON.stringify([newItem, ...savedLocal]));
+    localStorage.setItem(localKey, JSON.stringify(updatedWardrobe));
+
+    // Save to real-time cloud storage so other devices get it!
+    saveUserCloudWardrobe(username, accountKey, {
+      clothing: type === 'clothing' ? updatedWardrobe : JSON.parse(localStorage.getItem(`atelier-clothing-${userId}`) || '[]'),
+      scents: type === 'scents' ? updatedWardrobe : JSON.parse(localStorage.getItem(`atelier-scents-${userId}`) || '[]')
+    });
 
     try {
       await fetch(`/api/${type}`, {
