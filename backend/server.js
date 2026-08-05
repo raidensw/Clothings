@@ -34,6 +34,39 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Profile Context Middleware
+app.use((req, res, next) => {
+  const userIdHeader = req.headers['x-user-id'];
+  req.userId = userIdHeader ? parseInt(userIdHeader, 10) : 1;
+  next();
+});
+
+// ─── PROFILE / AUTH ROUTES ──────────────────────────────────────────────────
+app.get('/api/profiles', (req, res) => {
+  try {
+    const users = db.prepare('SELECT id, username, name, avatar_color, created_at FROM users ORDER BY id ASC').all();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/profiles/create', (req, res) => {
+  const { name, username } = req.body;
+  if (!name) return res.status(400).json({ error: 'Profile name is required' });
+  const cleanUsername = (username || name).toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now().toString().slice(-4);
+  const colors = ['#5B664C', '#A34E36', '#3B4B5B', '#8C6547', '#4E5B6E'];
+  const avatarColor = colors[Math.floor(Math.random() * colors.length)];
+
+  try {
+    const stmt = db.prepare('INSERT INTO users (username, password, name, avatar_color) VALUES (?, ?, ?, ?)');
+    const info = stmt.run(cleanUsername, '1234', name, avatarColor);
+    res.json({ id: info.lastInsertRowid, username: cleanUsername, name, avatar_color: avatarColor });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── CLOTHING ROUTES ────────────────────────────────────────────────────────
 
 app.post('/api/clothing/upload', upload.single('image'), async (req, res) => {
@@ -68,10 +101,10 @@ app.post('/api/clothing', (req, res) => {
     const formattedSeasonFit = Array.isArray(season_fit) ? season_fit.join(', ') : season_fit;
     const formattedStyle = Array.isArray(style) ? style.join(', ') : style;
     const stmt = db.prepare(`
-      INSERT INTO clothing_items (image_path, back_image_path, category, color, style, pattern, season_fit, warmth_level, brand, purchase_price)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO clothing_items (user_id, image_path, back_image_path, category, color, style, pattern, season_fit, warmth_level, brand, purchase_price)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    const info = stmt.run(image_path, back_image_path || null, category, color, formattedStyle, pattern, formattedSeasonFit, warmth_level, brand || null, purchase_price || null);
+    const info = stmt.run(req.userId, image_path, back_image_path || null, category, color, formattedStyle, pattern, formattedSeasonFit, warmth_level, brand || null, purchase_price || null);
     res.json({ id: info.lastInsertRowid, success: true });
   } catch (err) {
     console.error('Failed to save clothing item:', err);
@@ -81,7 +114,7 @@ app.post('/api/clothing', (req, res) => {
 
 app.get('/api/clothing', (req, res) => {
   try {
-    const items = db.prepare('SELECT * FROM clothing_items ORDER BY created_at DESC').all();
+    const items = db.prepare('SELECT * FROM clothing_items WHERE user_id = ? ORDER BY created_at DESC').all(req.userId);
     res.json(items);
   } catch (err) {
     res.status(500).json({ error: err.message });

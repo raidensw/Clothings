@@ -127,9 +127,135 @@ function Home() {
   );
 }
 
+function ProfileSelector() {
+  const [profiles, setProfiles] = useState([]);
+  const [activeProfileId, setActiveProfileId] = useState(localStorage.getItem('atelier-user-id') || '1');
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newProfileName, setNewProfileName] = useState('');
+
+  const loadProfiles = () => {
+    fetch('/api/profiles')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setProfiles(data);
+          if (!data.some(p => String(p.id) === String(activeProfileId))) {
+            const firstId = data[0]?.id || 1;
+            setActiveProfileId(String(firstId));
+            localStorage.setItem('atelier-user-id', String(firstId));
+          }
+        }
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadProfiles();
+  }, []);
+
+  const handleProfileChange = (id) => {
+    setActiveProfileId(id);
+    localStorage.setItem('atelier-user-id', id);
+    window.location.reload(); // Reload to refresh closet for active profile
+  };
+
+  const createProfile = async (e) => {
+    e.preventDefault();
+    if (!newProfileName.trim()) return;
+    try {
+      const res = await fetch('/api/profiles/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newProfileName })
+      });
+      const data = await res.json();
+      if (data.id) {
+        setNewProfileName('');
+        setShowNewModal(false);
+        handleProfileChange(String(data.id));
+      }
+    } catch (err) {
+      alert('Failed to create profile');
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+      <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>Profile:</span>
+      <select
+        value={activeProfileId}
+        onChange={(e) => {
+          if (e.target.value === 'NEW') {
+            setShowNewModal(true);
+          } else {
+            handleProfileChange(e.target.value);
+          }
+        }}
+        style={{
+          padding: '0.35rem 0.6rem',
+          fontSize: '0.75rem',
+          borderRadius: '6px',
+          border: '1px solid var(--accent-olive)',
+          background: 'var(--card-bg)',
+          color: 'var(--text-color)',
+          cursor: 'pointer',
+          fontWeight: '600'
+        }}
+      >
+        {profiles.map(p => (
+          <option key={p.id} value={p.id}>👤 {p.name || `Profile #${p.id}`}</option>
+        ))}
+        <option value="NEW">➕ Add Profile...</option>
+      </select>
+
+      {showNewModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
+        }}>
+          <div className="hangtag" style={{ maxWidth: '400px', width: '100%', background: 'var(--card-bg)', padding: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>Create Profile</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+              Create a profile to access your closet across phone & PC!
+            </p>
+            <form onSubmit={createProfile}>
+              <input
+                type="text"
+                placeholder="e.g. Raiden's Closet"
+                value={newProfileName}
+                onChange={e => setNewProfileName(e.target.value)}
+                style={{ width: '100%', padding: '0.6rem 0.8rem', fontSize: '0.9rem', marginBottom: '1rem' }}
+                autoFocus
+              />
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowNewModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Create Profile</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [theme, setTheme] = useState(localStorage.getItem('atelier-theme') || 'ecru');
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    // Intercept fetch calls to pass x-user-id header automatically
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options = {}) {
+      const activeUserId = localStorage.getItem('atelier-user-id') || '1';
+      options.headers = {
+        'x-user-id': activeUserId,
+        ...(options.headers || {})
+      };
+      return originalFetch(url, options);
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -159,14 +285,14 @@ function App() {
           ))}
         </div>
 
-        {/* Theme selector + hamburger */}
+        {/* Profile Switcher + Theme selector + hamburger */}
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>Theme:</span>
+          <ProfileSelector />
           <select
             value={theme}
             onChange={(e) => setTheme(e.target.value)}
             style={{
-              padding: '0.35rem 0.75rem',
+              padding: '0.35rem 0.5rem',
               fontSize: '0.75rem',
               borderRadius: '6px',
               border: '1px solid var(--border-color)',

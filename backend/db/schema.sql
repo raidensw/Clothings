@@ -1,5 +1,15 @@
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  name TEXT,
+  avatar_color TEXT DEFAULT '#5B664C',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS clothing_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER DEFAULT 1,
   image_path TEXT NOT NULL,
   back_image_path TEXT,
   category TEXT,
@@ -17,6 +27,7 @@ CREATE TABLE IF NOT EXISTS clothing_items (
 
 CREATE TABLE IF NOT EXISTS scents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER DEFAULT 1,
   image_path TEXT NOT NULL,
   name TEXT DEFAULT 'unnamed',
   type TEXT,
@@ -30,6 +41,7 @@ CREATE TABLE IF NOT EXISTS scents (
 
 CREATE TABLE IF NOT EXISTS outfit_presets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER DEFAULT 1,
   name TEXT NOT NULL,
   clothing_ids TEXT, -- JSON array of clothing item IDs
   scent_id INTEGER,
@@ -38,6 +50,7 @@ CREATE TABLE IF NOT EXISTS outfit_presets (
 
 CREATE TABLE IF NOT EXISTS wishlist (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER DEFAULT 1,
   item_name TEXT NOT NULL,
   category TEXT,
   price REAL,
@@ -48,6 +61,7 @@ CREATE TABLE IF NOT EXISTS wishlist (
 
 CREATE TABLE IF NOT EXISTS trips (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER DEFAULT 1,
   destination TEXT NOT NULL,
   start_date TEXT NOT NULL,
   end_date TEXT NOT NULL,
@@ -58,10 +72,12 @@ CREATE TABLE IF NOT EXISTS trips (
 
 CREATE TABLE IF NOT EXISTS outfit_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  date TEXT UNIQUE, -- format YYYY-MM-DD
+  user_id INTEGER DEFAULT 1,
+  date TEXT NOT NULL, -- format YYYY-MM-DD
   item_ids TEXT, -- JSON array of item IDs
   scent_id INTEGER,
   weather_snapshot TEXT, -- JSON string
   occasion TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, date)
 );

@@ -221,19 +221,36 @@ export default function UploadItem() {
               onChange={handleFileChange} 
               style={{ display: 'none' }} 
             />
-            <label htmlFor="file-upload-input" style={{ cursor: 'pointer', display: 'block' }}>
-              <div style={{ marginBottom: '1.25rem', display: 'inline-flex' }}>
+            <input 
+              type="file" 
+              id="camera-upload-input"
+              accept="image/*" 
+              capture="environment"
+              onChange={handleFileChange} 
+              style={{ display: 'none' }} 
+            />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ marginBottom: '1rem', display: 'inline-flex' }}>
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-olive)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2a3 3 0 0 0-3 3c0 1 .5 1.5 1 2.5L2 17a2 2 0 0 0 1 3.5h18a2 2 0 0 0 1-3.5L14 7.5c.5-1 1-1.5 1-2.5a3 3 0 0 0-3-3z"/>
                 </svg>
               </div>
               <h4 style={{ fontSize: '1.4rem', marginBottom: '0.5rem', fontFamily: 'var(--font-display)' }}>
-                {files.length > 0 ? `${files.length} image(s) selected` : 'Select Closet Images'}
+                {files.length > 0 ? `${files.length} photo(s) ready` : 'Add Clothes to Closet'}
               </h4>
-              <p style={{ fontSize: '0.85rem' }}>
-                Click to browse files (Front photos required; back photos can be added on next step)
+              <p style={{ fontSize: '0.85rem', marginBottom: '1.25rem', color: 'var(--text-muted)' }}>
+                Upload photos from phone or PC to auto-tag with AI
               </p>
-            </label>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <label htmlFor="camera-upload-input" className="btn btn-primary" style={{ cursor: 'pointer', padding: '0.6rem 1.2rem', fontSize: '0.85rem' }}>
+                  📷 Snap Photo
+                </label>
+                <label htmlFor="file-upload-input" className="btn btn-secondary" style={{ cursor: 'pointer', padding: '0.6rem 1.2rem', fontSize: '0.85rem' }}>
+                  📁 Choose Photos
+                </label>
+              </div>
+            </div>
           </div>
           
           {previews.length > 0 && (
