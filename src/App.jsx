@@ -134,19 +134,32 @@ function ProfileSelector() {
   const [newProfileName, setNewProfileName] = useState('');
 
   const loadProfiles = () => {
+    // Combine local profiles with server profiles
+    const savedLocalProfiles = JSON.parse(localStorage.getItem('atelier-local-profiles') || '[]');
+    const defaultProfiles = [
+      { id: '1', name: 'My Wardrobe' },
+      ...savedLocalProfiles
+    ];
+
     fetch('/api/profiles')
       .then(r => r.json())
       .then(data => {
-        if (Array.isArray(data)) {
-          setProfiles(data);
-          if (!data.some(p => String(p.id) === String(activeProfileId))) {
-            const firstId = data[0]?.id || 1;
-            setActiveProfileId(String(firstId));
-            localStorage.setItem('atelier-user-id', String(firstId));
-          }
+        if (Array.isArray(data) && data.length > 0) {
+          // Merge unique profiles
+          const merged = [...defaultProfiles];
+          data.forEach(p => {
+            if (!merged.some(m => String(m.id) === String(p.id))) {
+              merged.push({ id: String(p.id), name: p.name });
+            }
+          });
+          setProfiles(merged);
+        } else {
+          setProfiles(defaultProfiles);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setProfiles(defaultProfiles);
+      });
   };
 
   useEffect(() => {
@@ -156,41 +169,41 @@ function ProfileSelector() {
   const handleProfileChange = (id) => {
     setActiveProfileId(id);
     localStorage.setItem('atelier-user-id', id);
-    window.location.reload(); // Reload to refresh closet for active profile
+    window.location.reload();
   };
 
   const createProfile = async (e) => {
     e.preventDefault();
     if (!newProfileName.trim()) return;
+    
+    const newId = 'profile_' + Date.now();
+    const newProf = { id: newId, name: newProfileName.trim() };
+    
+    // Save locally for instant persistence
+    const savedLocalProfiles = JSON.parse(localStorage.getItem('atelier-local-profiles') || '[]');
+    const updatedLocal = [...savedLocalProfiles, newProf];
+    localStorage.setItem('atelier-local-profiles', JSON.stringify(updatedLocal));
+
     try {
-      const res = await fetch('/api/profiles/create', {
+      await fetch('/api/profiles/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newProfileName })
       });
-      const data = await res.json();
-      if (data.id) {
-        setNewProfileName('');
-        setShowNewModal(false);
-        handleProfileChange(String(data.id));
-      }
     } catch (err) {
-      alert('Failed to create profile');
+      // Continue with local profile if serverless API is offline
     }
+
+    setNewProfileName('');
+    setShowNewModal(false);
+    handleProfileChange(newId);
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-      <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>Profile:</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
       <select
         value={activeProfileId}
-        onChange={(e) => {
-          if (e.target.value === 'NEW') {
-            setShowNewModal(true);
-          } else {
-            handleProfileChange(e.target.value);
-          }
-        }}
+        onChange={(e) => handleProfileChange(e.target.value)}
         style={{
           padding: '0.35rem 0.6rem',
           fontSize: '0.75rem',
@@ -203,10 +216,26 @@ function ProfileSelector() {
         }}
       >
         {profiles.map(p => (
-          <option key={p.id} value={p.id}>👤 {p.name || `Profile #${p.id}`}</option>
+          <option key={p.id} value={p.id}>👤 {p.name}</option>
         ))}
-        <option value="NEW">➕ Add Profile...</option>
       </select>
+
+      <button
+        type="button"
+        onClick={() => setShowNewModal(true)}
+        className="btn btn-secondary"
+        title="Add New Profile"
+        style={{
+          padding: '0.35rem 0.6rem',
+          fontSize: '0.75rem',
+          lineHeight: '1',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.2rem'
+        }}
+      >
+        ➕ New
+      </button>
 
       {showNewModal && (
         <div style={{
