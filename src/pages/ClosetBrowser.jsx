@@ -17,15 +17,35 @@ export default function ClosetBrowser() {
 
   const loadData = () => {
     const userId = localStorage.getItem('atelier-user-id') || '1';
+    const localClothingKey = `atelier-clothing-${userId}`;
+    const localScentsKey = `atelier-scents-${userId}`;
+
+    const savedLocalClothing = JSON.parse(localStorage.getItem(localClothingKey) || '[]');
+    const savedLocalScents = JSON.parse(localStorage.getItem(localScentsKey) || '[]');
+
     fetch('/api/clothing', { headers: { 'x-user-id': userId } })
       .then(res => res.json())
-      .then(data => setClothing(Array.isArray(data) ? data : []))
-      .catch(() => setClothing([]));
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setClothing(data);
+          localStorage.setItem(localClothingKey, JSON.stringify(data));
+        } else {
+          setClothing(savedLocalClothing);
+        }
+      })
+      .catch(() => setClothing(savedLocalClothing));
       
     fetch('/api/scents', { headers: { 'x-user-id': userId } })
       .then(res => res.json())
-      .then(data => setScents(Array.isArray(data) ? data : []))
-      .catch(() => setScents([]));
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setScents(data);
+          localStorage.setItem(localScentsKey, JSON.stringify(data));
+        } else {
+          setScents(savedLocalScents);
+        }
+      })
+      .catch(() => setScents(savedLocalScents));
   };
 
   useEffect(() => {

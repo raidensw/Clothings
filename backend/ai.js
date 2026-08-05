@@ -8,8 +8,11 @@ const groq = new Groq({
 /**
  * Helper to convert local image to base64 for Groq Vision
  */
-function imageToBase64(imagePath) {
-  const ext = imagePath.split('.').pop().toLowerCase();
+function imageToBase64(imageInput) {
+  if (typeof imageInput === 'string' && imageInput.startsWith('data:')) {
+    return imageInput;
+  }
+  const ext = typeof imageInput === 'string' ? imageInput.split('.').pop().toLowerCase() : 'jpeg';
   const mimeMap = {
     jpg: 'image/jpeg',
     jpeg: 'image/jpeg',
@@ -20,7 +23,7 @@ function imageToBase64(imagePath) {
     heif: 'image/heif',
   };
   const mimeType = mimeMap[ext] || 'image/jpeg';
-  const imageBuffer = fs.readFileSync(imagePath);
+  const imageBuffer = Buffer.isBuffer(imageInput) ? imageInput : fs.readFileSync(imageInput);
   const base64Image = imageBuffer.toString('base64');
   return `data:${mimeType};base64,${base64Image}`;
 }

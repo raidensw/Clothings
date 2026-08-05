@@ -25,14 +25,8 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(uploadsDir));
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage });
+// Configure multer in-memory for serverless compatibility (Netlify/Lambda)
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Profile Context Middleware
 app.use((req, res, next) => {
@@ -72,12 +66,19 @@ app.post('/api/profiles/create', (req, res) => {
 app.post('/api/clothing/upload', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
-    const imagePath = `/uploads/${req.file.filename}`;
-    const fullPath = path.join(__dirname, imagePath);
-    console.log('Analyzing clothing image:', fullPath);
-    const draftTags = await ai.analyzeClothingImage(fullPath);
-    console.log('AI clothing tags:', draftTags);
-    res.json({ image_path: imagePath, tags: draftTags });
+    const mimeType = req.file.mimetype || 'image/jpeg';
+    const dataUrl = `data:${mimeType};base64,${req.file.buffer.toString('base64')}`;
+
+    let draftTags = { category: 'Garment', color: 'Neutral', style: 'Casual', pattern: 'Solid', season_fit: 'All-season', warmth_level: 3 };
+    try {
+      if (process.env.GROQ_API_KEY) {
+        draftTags = await ai.analyzeClothingImage(dataUrl);
+      }
+    } catch (aiErr) {
+      console.warn('AI analysis fallback:', aiErr.message);
+    }
+    
+    res.json({ image_path: dataUrl, tags: draftTags });
   } catch (err) {
     console.error('Clothing upload error:', err.message);
     res.status(500).json({ error: err.message });
@@ -87,8 +88,9 @@ app.post('/api/clothing/upload', upload.single('image'), async (req, res) => {
 app.post('/api/clothing/upload-back', upload.single('back_image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No back image uploaded' });
-    const backImagePath = `/uploads/${req.file.filename}`;
-    res.json({ back_image_path: backImagePath });
+    const mimeType = req.file.mimetype || 'image/jpeg';
+    const dataUrl = `data:${mimeType};base64,${req.file.buffer.toString('base64')}`;
+    res.json({ back_image_path: dataUrl });
   } catch (err) {
     console.error('Back clothing upload error:', err.message);
     res.status(500).json({ error: err.message });
