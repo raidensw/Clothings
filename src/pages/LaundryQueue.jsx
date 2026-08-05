@@ -7,10 +7,14 @@ export default function LaundryQueue() {
 
   const loadClothing = () => {
     setLoading(true);
-    fetch('/api/clothing').then(r => r.json()).then(data => {
-      setClothing(data);
+    const userId = localStorage.getItem('atelier-user-id') || '1';
+    fetch('/api/clothing', { headers: { 'x-user-id': userId } }).then(r => r.json()).then(data => {
+      setClothing(Array.isArray(data) ? data : []);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => {
+      setClothing([]);
+      setLoading(false);
+    });
   };
 
   useEffect(() => { loadClothing(); }, []);

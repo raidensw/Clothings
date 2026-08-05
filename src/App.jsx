@@ -274,19 +274,6 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Intercept fetch calls to pass x-user-id header automatically
-    const originalFetch = window.fetch;
-    window.fetch = function(url, options = {}) {
-      const activeUserId = localStorage.getItem('atelier-user-id') || '1';
-      options.headers = {
-        'x-user-id': activeUserId,
-        ...(options.headers || {})
-      };
-      return originalFetch(url, options);
-    };
-  }, []);
-
-  useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('atelier-theme', theme);
   }, [theme]);

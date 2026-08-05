@@ -16,13 +16,16 @@ export default function ClosetBrowser() {
   };
 
   const loadData = () => {
-    fetch('/api/clothing')
+    const userId = localStorage.getItem('atelier-user-id') || '1';
+    fetch('/api/clothing', { headers: { 'x-user-id': userId } })
       .then(res => res.json())
-      .then(data => setClothing(data));
+      .then(data => setClothing(Array.isArray(data) ? data : []))
+      .catch(() => setClothing([]));
       
-    fetch('/api/scents')
+    fetch('/api/scents', { headers: { 'x-user-id': userId } })
       .then(res => res.json())
-      .then(data => setScents(data));
+      .then(data => setScents(Array.isArray(data) ? data : []))
+      .catch(() => setScents([]));
   };
 
   useEffect(() => {
