@@ -150,9 +150,17 @@ export default function ClosetBrowser() {
       {/* Editorial Page Title */}
       <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
         <h2 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Your Curated Wardrobe</h2>
-        <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '1.1rem' }}>
+        <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '1.1rem', marginBottom: '1rem' }}>
           Explore your collected garments and signature fragrances
         </p>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={loadData}
+          style={{ fontSize: '0.75rem', padding: '0.35rem 0.85rem', borderRadius: '20px' }}
+        >
+          ☁️ Sync Cloud Closet
+        </button>
       </div>
 
       {/* Navigation Switcher (Clothes / Scents) */}
