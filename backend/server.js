@@ -31,7 +31,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Profile Context Middleware
 app.use((req, res, next) => {
   const userIdHeader = req.headers['x-user-id'];
-  req.userId = userIdHeader ? parseInt(userIdHeader, 10) : 1;
+  req.userId = userIdHeader ? String(userIdHeader).trim() : '1';
   next();
 });
 
@@ -509,25 +509,29 @@ app.delete('/api/wishlist/:id', (req, res) => {
 // ─── SUGGESTION ROUTES ───────────────────────────────────────────────────────
 
 app.post('/api/suggest/outfit', async (req, res) => {
-  const { occasion, weather } = req.body;
+  const { occasion, weather, clothing: bodyClothing, scents: bodyScents } = req.body;
   try {
     const today = new Date().toISOString().split('T')[0];
-    // Only clean, not packed items
-    const clothing = db.prepare('SELECT * FROM clothing_items WHERE is_dirty = 0 AND (packed_until IS NULL OR packed_until < ?)').all(today);
-    const scents = db.prepare('SELECT * FROM scents').all();
+    let clothing = db.prepare('SELECT * FROM clothing_items WHERE user_id = ? AND is_dirty = 0 AND (packed_until IS NULL OR packed_until < ?)').all(req.userId, today);
+    let scents = db.prepare('SELECT * FROM scents WHERE user_id = ?').all(req.userId);
 
-    // Get recently worn for cooldown
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 3);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
-    const recentLogs = db.prepare("SELECT item_ids, scent_id FROM outfit_logs WHERE date >= ?").all(cutoffStr);
-    const recentlyWorn = [];
-    recentLogs.forEach(log => {
-      try { JSON.parse(log.item_ids || '[]').forEach(id => recentlyWorn.push(id)); } catch {}
-      if (log.scent_id) recentlyWorn.push(log.scent_id);
-    });
+    // Fallback to client-provided items if DB returns empty on serverless
+    if (clothing.length === 0 && Array.isArray(bodyClothing) && bodyClothing.length > 0) {
+      clothing = bodyClothing;
+    }
+    if (scents.length === 0 && Array.isArray(bodyScents) && bodyScents.length > 0) {
+      scents = bodyScents;
+    }
 
-    const aiResult = await ai.suggestOutfit(clothing, scents, weather, occasion, [...new Set(recentlyWorn)]);
+    if (clothing.length === 0) {
+      return res.json({
+        styling_advice: "Your closet is currently empty! Upload a few clothing items on the 'Add Item' tab to generate custom outfit pairings.",
+        clothing: [],
+        scents: []
+      });
+    }
+
+    const aiResult = await ai.suggestOutfit(clothing, scents, weather, occasion, []);
 
     const recommendedClothing = clothing.filter(item =>
       aiResult.recommended_clothing_ids && aiResult.recommended_clothing_ids.includes(item.id)
@@ -538,8 +542,8 @@ app.post('/api/suggest/outfit', async (req, res) => {
 
     res.json({
       styling_advice: aiResult.styling_advice || aiResult,
-      clothing: recommendedClothing,
-      scents: recommendedScents
+      clothing: recommendedClothing.length > 0 ? recommendedClothing : clothing.slice(0, 3),
+      scents: recommendedScents.length > 0 ? recommendedScents : scents.slice(0, 1)
     });
   } catch (err) {
     console.error('Failed to get outfit suggestion:', err);

@@ -8,11 +8,18 @@ export default function LaundryQueue() {
   const loadClothing = () => {
     setLoading(true);
     const userId = localStorage.getItem('atelier-user-id') || '1';
+    const localItems = JSON.parse(localStorage.getItem(`atelier-clothing-${userId}`) || '[]');
+    if (localItems.length > 0) {
+      setClothing(localItems);
+      setLoading(false);
+    }
     fetch('/api/clothing', { headers: { 'x-user-id': userId } }).then(r => r.json()).then(data => {
-      setClothing(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length > 0) {
+        setClothing(data);
+        localStorage.setItem(`atelier-clothing-${userId}`, JSON.stringify(data));
+      }
       setLoading(false);
     }).catch(() => {
-      setClothing([]);
       setLoading(false);
     });
   };
@@ -35,13 +42,19 @@ export default function LaundryQueue() {
   const deselectAll = () => setSelected([]);
 
   const markClean = async (ids) => {
-    await fetch('/api/clothing/bulk/dirty', {
+    const userId = localStorage.getItem('atelier-user-id') || '1';
+    // Update localStorage immediately
+    const localItems = JSON.parse(localStorage.getItem(`atelier-clothing-${userId}`) || '[]');
+    const updated = localItems.map(i => ids.includes(i.id) ? { ...i, is_dirty: 0 } : i);
+    localStorage.setItem(`atelier-clothing-${userId}`, JSON.stringify(updated));
+    setClothing(prev => prev.map(i => ids.includes(i.id) ? { ...i, is_dirty: 0 } : i));
+    setSelected([]);
+    // Also try API
+    fetch('/api/clothing/bulk/dirty', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids, is_dirty: false })
-    });
-    loadClothing();
-    setSelected([]);
+    }).catch(() => {});
   };
 
   return (

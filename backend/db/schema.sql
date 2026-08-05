@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS clothing_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER DEFAULT 1,
+  user_id TEXT DEFAULT '1',
   image_path TEXT NOT NULL,
   back_image_path TEXT,
   category TEXT,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS clothing_items (
 
 CREATE TABLE IF NOT EXISTS scents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER DEFAULT 1,
+  user_id TEXT DEFAULT '1',
   image_path TEXT NOT NULL,
   name TEXT DEFAULT 'unnamed',
   type TEXT,

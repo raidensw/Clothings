@@ -16,44 +16,42 @@ export default function ClosetBrowser() {
     setFlippedItems(prev => ({ ...prev, [itemId]: !prev[itemId] }));
   };
 
-  const loadData = async () => {
-    const username = localStorage.getItem('atelier-account-name') || 'guest';
-    const accountKey = localStorage.getItem('atelier-account-key') || 'key';
+  const loadData = async (forceCloud = false) => {
+    const username = localStorage.getItem('atelier-account-name') || '';
+    const accountKey = localStorage.getItem('atelier-account-key') || '';
     const userId = localStorage.getItem('atelier-user-id') || '1';
 
     const localClothingKey = `atelier-clothing-${userId}`;
     const localScentsKey = `atelier-scents-${userId}`;
 
-    const savedLocalClothing = JSON.parse(localStorage.getItem(localClothingKey) || '[]');
-    const savedLocalScents = JSON.parse(localStorage.getItem(localScentsKey) || '[]');
+    // STEP 1: Load local data INSTANTLY so images show right away
+    const localClothing = JSON.parse(localStorage.getItem(localClothingKey) || '[]');
+    const localScents = JSON.parse(localStorage.getItem(localScentsKey) || '[]');
+    setClothing(localClothing);
+    setScents(localScents);
 
-    // 1. Fetch from cloud storage
-    const cloudData = await fetchUserCloudWardrobe(username, accountKey);
-    if (cloudData) {
-      if (Array.isArray(cloudData.clothing)) {
-        setClothing(cloudData.clothing);
-        localStorage.setItem(localClothingKey, JSON.stringify(cloudData.clothing));
-      }
-      if (Array.isArray(cloudData.scents)) {
-        setScents(cloudData.scents);
-        localStorage.setItem(localScentsKey, JSON.stringify(cloudData.scents));
-      }
-    } else {
-      setClothing(savedLocalClothing);
-      setScents(savedLocalScents);
-    }
+    // STEP 2: Pull from cloud in background (if user is logged in)
+    if (username && accountKey) {
+      try {
+        const cloudData = await fetchUserCloudWardrobe(username, accountKey);
+        if (cloudData) {
+          // Merge: use cloud if it has MORE items or was forced
+          const cloudClothing = Array.isArray(cloudData.clothing) ? cloudData.clothing : [];
+          const cloudScents = Array.isArray(cloudData.scents) ? cloudData.scents : [];
 
-    // 2. Fetch from backend API
-    fetch('/api/clothing', { headers: { 'x-user-id': userId } })
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setClothing(data);
-          localStorage.setItem(localClothingKey, JSON.stringify(data));
-          saveUserCloudWardrobe(username, accountKey, { clothing: data, scents: savedLocalScents });
+          if (cloudClothing.length >= localClothing.length || forceCloud) {
+            setClothing(cloudClothing);
+            localStorage.setItem(localClothingKey, JSON.stringify(cloudClothing));
+          }
+          if (cloudScents.length >= localScents.length || forceCloud) {
+            setScents(cloudScents);
+            localStorage.setItem(localScentsKey, JSON.stringify(cloudScents));
+          }
         }
-      })
-      .catch(() => {});
+      } catch (err) {
+        console.warn('Cloud sync load warning:', err.message);
+      }
+    }
   };
 
   useEffect(() => {
@@ -156,7 +154,7 @@ export default function ClosetBrowser() {
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={loadData}
+          onClick={() => loadData(true)}
           style={{ fontSize: '0.75rem', padding: '0.35rem 0.85rem', borderRadius: '20px' }}
         >
           ☁️ Sync Cloud Closet

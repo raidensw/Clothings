@@ -20,12 +20,20 @@ export default function Suggestions() {
 
   // Fetch all clothing items for selection mode
   useEffect(() => {
-    if (mode === 'selection-based') {
-      fetch('/api/clothing')
-        .then(res => res.json())
-        .then(data => setAllClothing(data))
-        .catch(err => console.error('Failed to fetch clothing:', err));
-    }
+    const userId = localStorage.getItem('atelier-user-id') || '1';
+    const localKey = `atelier-clothing-${userId}`;
+    const localSaved = JSON.parse(localStorage.getItem(localKey) || '[]');
+
+    fetch('/api/clothing', { headers: { 'x-user-id': userId } })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setAllClothing(data);
+        } else {
+          setAllClothing(localSaved);
+        }
+      })
+      .catch(() => setAllClothing(localSaved));
   }, [mode]);
   const [days, setDays] = useState(3);
   const [multiResult, setMultiResult] = useState(null);
@@ -108,15 +116,20 @@ export default function Suggestions() {
     }
 
     try {
-      // Check recent wear cooldowns
-      const recentRes = await fetch('/api/history/recent?days=3');
-      const recentData = await recentRes.json();
+      const userId = localStorage.getItem('atelier-user-id') || '1';
 
       if (mode === 'single') {
         const res = await fetch('/api/suggest/outfit', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ occasion, weather: weather?.current_weather })
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-user-id': userId
+          },
+          body: JSON.stringify({
+            occasion,
+            weather: weather?.current_weather,
+            clothing: allClothing
+          })
         });
         if (!res.ok) throw new Error((await res.json()).error || 'Request failed');
         const data = await res.json();
